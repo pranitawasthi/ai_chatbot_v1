@@ -1101,32 +1101,18 @@ const ChatContainer = ({ messages, onSendMessage, uploadedFile, error, onErrorCl
 
   // Enhanced scroll to bottom function
   const scrollToBottom = (force = false) => {
-    if (messagesEndRef.current) {
-      // Use different scroll methods for better mobile compatibility
+    const messagesContainer = messagesContainerRef.current;
+    if (messagesContainer) {
+      // Always scroll the messages container, not the whole page
+      setTimeout(() => {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }, 50);
+      
+      // Additional scroll for mobile after keyboard animations
       if (force || window.innerWidth <= 768) {
-        // For mobile or forced scroll, use multiple methods for reliability
         setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'end',
-            inline: 'nearest'
-          });
-          
-          // Fallback scroll method
-          if (messagesContainerRef.current) {
-            messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-          }
-        }, 100);
-        
-        // Additional scroll after a longer delay to handle keyboard closing
-        setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'end' 
-          });
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }, 300);
-      } else {
-        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
       }
     }
   };
@@ -1147,16 +1133,37 @@ const ChatContainer = ({ messages, onSendMessage, uploadedFile, error, onErrorCl
   // Handle textarea focus/blur for mobile scroll behavior
   useEffect(() => {
     const textarea = textareaRef.current;
-    if (!textarea) return;
+    const messagesContainer = messagesContainerRef.current;
+    if (!textarea || !messagesContainer) return;
 
     const handleFocus = () => {
-      // Small delay to let keyboard appear, then scroll
-      setTimeout(() => scrollToBottom(true), 300);
+      // Add keyboard-open class to prevent body scroll
+      if (window.innerWidth <= 768) {
+        document.body.classList.add('keyboard-open');
+        document.querySelector('.container')?.classList.add('keyboard-open');
+      }
+      
+      // On focus, scroll the messages container to bottom, not the whole page
+      setTimeout(() => {
+        if (messagesEndRef.current && messagesContainer) {
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+      }, 300);
     };
 
     const handleBlur = () => {
-      // Scroll after keyboard disappears
-      setTimeout(() => scrollToBottom(true), 300);
+      // Remove keyboard-open class
+      if (window.innerWidth <= 768) {
+        document.body.classList.remove('keyboard-open');
+        document.querySelector('.container')?.classList.remove('keyboard-open');
+      }
+      
+      // On blur, ensure messages are scrolled to bottom
+      setTimeout(() => {
+        if (messagesEndRef.current && messagesContainer) {
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+      }, 300);
     };
 
     textarea.addEventListener('focus', handleFocus);
@@ -1165,6 +1172,9 @@ const ChatContainer = ({ messages, onSendMessage, uploadedFile, error, onErrorCl
     return () => {
       textarea.removeEventListener('focus', handleFocus);
       textarea.removeEventListener('blur', handleBlur);
+      // Clean up classes on unmount
+      document.body.classList.remove('keyboard-open');
+      document.querySelector('.container')?.classList.remove('keyboard-open');
     };
   }, []);
 
@@ -1175,15 +1185,14 @@ const ChatContainer = ({ messages, onSendMessage, uploadedFile, error, onErrorCl
     setMessage('');
     setIsLoading(true);
 
-    // Blur the textarea to hide keyboard on mobile
-    if (textareaRef.current) {
-      textareaRef.current.blur();
-    }
-
     onSendMessage(userMessage, 'user');
 
-    // Scroll after sending message and keyboard starts closing
-    setTimeout(() => scrollToBottom(true), 100);
+    // Scroll messages container after sending
+    setTimeout(() => {
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      }
+    }, 100);
 
     try {
       const formData = new FormData();
@@ -1199,11 +1208,19 @@ const ChatContainer = ({ messages, onSendMessage, uploadedFile, error, onErrorCl
       const data = await response.json();
       onSendMessage(data.response, 'ai');
       
-      // Final scroll after AI response
-      setTimeout(() => scrollToBottom(true), 200);
+      // Scroll after AI response
+      setTimeout(() => {
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+        }
+      }, 100);
     } catch (error) {
       onSendMessage('❌ Sorry, I encountered an error. Please try again.', 'ai');
-      setTimeout(() => scrollToBottom(true), 200);
+      setTimeout(() => {
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+        }
+      }, 100);
     } finally {
       setIsLoading(false);
     }
